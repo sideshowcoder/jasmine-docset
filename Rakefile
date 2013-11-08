@@ -1,11 +1,12 @@
 require "nokogiri"
 require "pry"
+require "sqlite3"
 require "rake/clean"
 
 task :default => :generate
 
 desc "Generate the docset for jasmine"
-task :generate => [:download_docs, :setup_plist, :recreate_index]
+task :generate => [:download_docs, :setup, :create_index]
 
 DOCSET = "jasmine.docset"
 CONTENTS = "#{DOCSET}/Contents"
@@ -20,14 +21,14 @@ task :download_docs do
 end
 CLEAN.include "pivotal.github.io"
 
-task :setup_plist do
-  cp "templates/info.plist", CONTENTS
+task :setup do
+  cp "templates/Info.plist", CONTENTS
+  cp "templates/icon.png", DOCSET
 end
 
-task :recreate_index do
+task :create_index do
   db = "#{RESOURCES}/docSet.dsidx"
   html_index = "#{HTML}/index.html"
-  rm db
   touch db
 
   SearchIndex.create_and_populate db, html_index
@@ -36,9 +37,19 @@ end
 class SearchIndex
   IGNORED_SECTIONS = [ "Downloads", "Support", "Thanks" ]
 
-  attr_reader :db
   def initialize db_file
-    @db = File.open(db_file, "w")
+    @db_file = db_file
+  end
+
+  def with_db
+    begin
+      db = SQLite3::Database.open @db_file
+      yield db
+    rescue SQLite3::Exception => e
+      puts "[ERROR] #{e}"
+    ensure
+      db.close if db
+    end
   end
 
   def self.create_and_populate(db_file, html_file)
@@ -48,8 +59,10 @@ class SearchIndex
   end
 
   def create
-    db.write "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);\n"
-    db.write "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);\n"
+    with_db { |db|
+      db.execute "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT)"
+      db.execute "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path)"
+    }
   end
 
   def populate_with_content html_file
@@ -64,12 +77,14 @@ class SearchIndex
     doc.css(".docs h2").each { |e|
       next if IGNORED_SECTIONS.include? e.content
       name = e.content.split(":")[0]
-      add_to_index name, "Section", "##{e.parent.parent["id"]}"
+      add_to_index name, "Section", "index.html##{e.parent.parent["id"]}"
     }
   end
 
   def add_to_index name, type, path
-    db.write "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES ('#{name}', '#{type}', '#{path}');\n"
+    with_db { |db|
+      db.execute "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES ('#{name}', '#{type}', '#{path}');\n"
+    }
   end
 
 end
