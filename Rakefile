@@ -1,5 +1,4 @@
 require "nokogiri"
-require "pry"
 require "sqlite3"
 require "rake/clean"
 
