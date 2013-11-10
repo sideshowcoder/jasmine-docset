@@ -1,37 +1,52 @@
 require "nokogiri"
+require "erb"
+require "ostruct"
 require "sqlite3"
 require "rake/clean"
+require "rake/packagetask"
 
-task :default => :generate
+task :default => :create_package
 
-desc "Generate the docset for jasmine"
-task :generate => [:download_docs, :setup, :create_index]
+desc "Create a release"
+task :release => [:create_package, :package, :create_release]
 
 DOCSET = "jasmine.docset"
 CONTENTS = "#{DOCSET}/Contents"
 RESOURCES = "#{CONTENTS}/Resources"
 HTML = "#{RESOURCES}/Documents"
+PUBLIC = "public"
+VERSION = "1.3.1"
 CLOBBER.include DOCSET
 
-task :download_docs do
+# [ ] upload to github pages
+Rake::PackageTask.new("jasmine-docset", "1.3.1") do |p|
+  p.need_tar = true
+  p.package_dir = PUBLIC
+  p.package_files.include("#{DOCSET}/*")
+  p.package_files.include("#{DOCSET}/**/*")
+end
+
+task :create_release do
+  feed_variables = OpenStruct.new(version: VERSION, url: "http://foo.bar.com")
+  feed_template = File.read("./templates/feed.xml.erb")
+  feed = ERB.new(feed_template).result(feed_variables.instance_eval { binding })
+  File.open("#{PUBLIC}/feed.xml", "w") { |f| f.write feed }
+end
+
+desc "Generate the docset package for jasmine"
+task :create_package do
   mkdir_p HTML
   `wget --progress=dot --convert-links -p http://pivotal.github.io/jasmine/`
   cp_r Dir["pivotal.github.io/jasmine/*"], HTML
-end
-CLEAN.include "pivotal.github.io"
-
-task :setup do
   cp "templates/Info.plist", CONTENTS
   cp "templates/icon.png", DOCSET
-end
-
-task :create_index do
   db = "#{RESOURCES}/docSet.dsidx"
   html_index = "#{HTML}/index.html"
   touch db
 
   SearchIndex.create_and_populate db, html_index
 end
+CLEAN.include "pivotal.github.io"
 
 class SearchIndex
   IGNORED_SECTIONS = [ "Downloads", "Support", "Thanks" ]
