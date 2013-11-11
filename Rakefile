@@ -1,4 +1,5 @@
 require "nokogiri"
+require 'tmpdir'
 require "erb"
 require "ostruct"
 require "sqlite3"
