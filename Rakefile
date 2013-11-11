@@ -31,7 +31,23 @@ task :create_release do
   feed_variables = OpenStruct.new(version: VERSION, url: url)
   feed_template = File.read("./templates/feed.xml.erb")
   feed = ERB.new(feed_template).result(feed_variables.instance_eval { binding })
-  File.open("#{PUBLIC}/feed.xml", "w") { |f| f.write feed }
+  File.open("#{PUBLIC}/Jasmine.xml", "w") { |f| f.write feed }
+end
+
+task :publish do
+  Dir.mktmpdir { |dir|
+    cp "public/jasmine-docset-#{VERSION}.tgz", dir
+    cp "public/Jasmine.xml", dir
+    `git checkout gh-pages`
+    cp "#{dir}/jasmine-docset-#{VERSION}.tgz", "public"
+    cp "#{dir}/Jasmine.xml", "public"
+    `git add -A`
+    current_commit = `git rev-parse --short HEAD`
+    `git commit -m 'updated to #{current_commit}'`
+    `git push origin gh-pages`
+    `git checkout master`
+    `git stash pop`
+  }
 end
 
 desc "Generate the docset package for jasmine"
