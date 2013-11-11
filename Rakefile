@@ -27,7 +27,8 @@ Rake::PackageTask.new("jasmine-docset", "1.3.1") do |p|
 end
 
 task :create_release do
-  feed_variables = OpenStruct.new(version: VERSION, url: "http://foo.bar.com")
+  url = "http://sideshowcoder.github.io/jasmine-docset/public/jasmine-docset-#{VERSION}.tgz"
+  feed_variables = OpenStruct.new(version: VERSION, url: url)
   feed_template = File.read("./templates/feed.xml.erb")
   feed = ERB.new(feed_template).result(feed_variables.instance_eval { binding })
   File.open("#{PUBLIC}/feed.xml", "w") { |f| f.write feed }
