@@ -2,7 +2,7 @@ Jasmine Docset for Dash
 =======================
 
 [Dash](http://kapeli.com/dash) is a nice documentation viewer for MacOSX, and
-this project provides the [Jasmine](http://pivotal.github.io/jasmine/)
+this project provides the [Jasmine](http://jasmine.github.io/)
 documentation for it. 
 
 Visit
